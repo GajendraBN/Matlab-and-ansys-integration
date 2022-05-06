@@ -1,0 +1,76 @@
+﻿
+# encoding: utf-8
+# Release 19.2
+
+import os
+import sys
+
+CWD = os.path.dirname(os.path.abspath(__file__))
+# SetScriptVersion(Version="19.3.111")
+SetScriptVersion(Version="20.1.164")
+# SetScriptVersion(Version="19.2.120")
+
+print('Start Workbench')
+print('Restore project archive')
+
+Unarchive(
+    ArchivePath="try.wbpz",
+    ProjectPath="test.wbpj",
+    Overwrite=True)
+
+print('Unzipping is over')
+print('Open Workbench project')
+Open(FilePath="test.wbpj")
+
+# access the 1st design point(DP0)
+
+designPoint1 = Parameters.GetDesignPoint(Name="0")
+
+# access and update the parameter values
+Force = Parameters.GetParameter("P1")
+Hpressure = Parameters.GetParameter("P2")
+Pressure = Parameters.GetParameter("P3")
+Total_Volume = Parameters.GetParameter("P4")
+
+
+def get_property(input_file_path):
+    if os.path.exists(input_file_path):
+        print('Open input file')
+        with open(input_file_path) as input_file:
+            for line in input_file:
+                yield line
+    else:
+        print('ERROR: {} does not exist'.format(input_file_path))
+        sys.exit(0)
+
+
+def insert_parameters(output_file_path):
+    for line in get_property(input_file_path):
+        force,hpressure, pressure = line.split()[0], line.split()[1], line.split()[2]
+        print('Insert parameter values')
+        print('force: {} [pa],hpressure: {} [m^2 s^-1], pressure: {} [s^-1]'.format(force,hpressure, pressure))
+        designPoint1.SetParameterExpression(Parameter=Force, Expression="{}".format(force))
+        designPoint1.SetParameterExpression(Parameter=Hpressure, Expression="{} ".format(hpressure))
+        designPoint1.SetParameterExpression(Parameter=Pressure, Expression="{}".format(pressure))
+
+        print('Updating parameters')
+        # backgroundSession1 = UpdateAllDesignPoints(DesignPoints=[designPoint1])
+        Update()
+        if os.path.exists(output_file_path):
+            with open(output_file_path, 'aw') as output_file:
+                print('Writing Volume')
+                print('Total_Volume: {}'.format(Total_Volume.Value))
+                output_file.write(str(Total_Volume.Value).split()[0])
+                output_file.write('\n')
+        else:
+            print('ERROR: {} does not exist'.format(output_file_path))
+            sys.exit(0)
+
+
+if __name__ == '__main__':
+    input_file_path = os.path.join(CWD, 'input.txt')
+    output_file_path = os.path.join(CWD, 'output.txt')
+    get_property(input_file_path)
+    insert_parameters(output_file_path)
+    Save(Overwrite=True)
+    print('Calculation complete!')
